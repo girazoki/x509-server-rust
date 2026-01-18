@@ -1,0 +1,16 @@
+[workspace]
+resolver = "2"
+
+[package]
+name = "x509-server-rust"
+version = "0.0.1"
+description = "x509-server."
+edition = "2024"
+
+[dependencies]
+x509-parser = "0.15"
+ring = "0.17"
+base64 = "0.22"
+sha2 = "0.10"
+tokio = { version = "1.37", features = ["net", "rt-multi-thread", "macros", "io-util"] }
+tempfile = "3.10"
