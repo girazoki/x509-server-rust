@@ -2,8 +2,7 @@
 mod utils;
 use base64::Engine;
 use utils::{TestAlgo, generate_cert_and_signature};
-use x509_parser::prelude::FromDer;
-use x509_parser::prelude::X509Certificate;
+use x509_parser::prelude::{FromDer, X509Certificate};
 use x509_server_rust::crypto::verify_signature;
 #[test]
 fn test_verify_all_algorithms() {
@@ -87,7 +86,7 @@ fn test_different_verifying_with_different_cert_errors() {
         TestAlgo::EcdsaP384,
         TestAlgo::Ed25519,
     ] {
-        let (der_bytes1, sig_b64) = generate_cert_and_signature(algo, message);
+        let (_der_bytes1, sig_b64) = generate_cert_and_signature(algo, message);
         let (der_bytes2, _) = generate_cert_and_signature(algo, message);
         let (_, cert_wrong) = X509Certificate::from_der(&der_bytes2).unwrap();
 

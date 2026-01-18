@@ -1,20 +1,11 @@
-use base64::{Engine as _, engine::general_purpose};
-use rcgen::PublicKeyData;
+use base64::Engine as _;
 use rcgen::SigningKey;
 use rcgen::{
-    Certificate, CertificateParams, KeyPair, PKCS_ECDSA_P256_SHA256, PKCS_ECDSA_P384_SHA384,
-    PKCS_ED25519, PKCS_RSA_SHA256,
+    CertificateParams, KeyPair, PKCS_ECDSA_P256_SHA256, PKCS_ECDSA_P384_SHA384, PKCS_ED25519,
+    PKCS_RSA_SHA256,
 };
-use ring::rand::SystemRandom;
-use ring::signature::ECDSA_P256_SHA256_ASN1_SIGNING;
-use ring::signature::ECDSA_P384_SHA384_ASN1_SIGNING;
-use ring::signature::EcdsaKeyPair;
-use ring::signature::Ed25519KeyPair;
-use ring::signature::RsaKeyPair;
-use x509_parser::certificate::X509Certificate;
-use x509_parser::prelude::FromDer;
-use x509_parser::prelude::parse_x509_pem;
 /// Supported algorithms
+#[allow(dead_code)]
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum TestAlgo {
     Rsa2048,

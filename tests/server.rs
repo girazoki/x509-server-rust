@@ -2,10 +2,9 @@ mod utils;
 use std::sync::Arc;
 use tokio::io::{AsyncReadExt, AsyncWriteExt, duplex};
 use utils::{TestAlgo, generate_cert_and_signature};
-use x509_parser::prelude::FromDer;
-use x509_parser::prelude::X509Certificate;
+use x509_parser::prelude::{FromDer, X509Certificate};
 use x509_server_rust::errors::ServerError;
-use x509_server_rust::server::{handle_connection, verify_script_against_cert_store};
+use x509_server_rust::server::handle_connection;
 
 #[tokio::test]
 async fn test_invalid_signature() {
@@ -51,7 +50,7 @@ async fn test_invalid_utf8_input() {
 
 #[tokio::test]
 async fn test_broken_stream() {
-    let (mut client, mut server) = duplex(1024);
+    let (client, mut server) = duplex(1024);
     let certs: Arc<Vec<X509Certificate<'static>>> = Arc::new(vec![]);
 
     let server_task = tokio::spawn(async move {

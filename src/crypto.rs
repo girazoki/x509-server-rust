@@ -2,7 +2,6 @@ use crate::errors::ServerError;
 use base64::Engine;
 use ring::signature;
 use ring::signature::{ECDSA_P256_SHA256_ASN1, ECDSA_P384_SHA384_ASN1, VerificationAlgorithm};
-use sha2::{Digest, Sha256};
 use x509_parser::oid_registry::*;
 use x509_parser::prelude::*;
 
@@ -17,9 +16,6 @@ pub fn verify_signature(
     let signature = base64::engine::general_purpose::STANDARD
         .decode(signature_b64.trim())
         .map_err(|_| ServerError::InvalidSignatureEncoding)?;
-
-    // Hash script body
-    //let digest = Sha256::digest(script_body);
 
     // Verify, We verify against a small set of crypto algorithms, in the case of more we should add more here
     let verification_alg: &dyn VerificationAlgorithm =
