@@ -3,6 +3,7 @@ set -euo pipefail
 
 CERT_DIR="./example_certs"
 OUT_DIR="./example_bash_scripts"
+UNSUCCESFUL_OUT_DIR="./example_bash_scripts"
 SCRIPT_BODY="echo hello"
 
 mkdir -p "$OUT_DIR"
@@ -90,9 +91,9 @@ sig_untrusted=$(printf "%s" "$SCRIPT_BODY" \
 {
     echo "# SIGNATURE: $sig_untrusted"
     echo "$SCRIPT_BODY"
-} > "$OUT_DIR/untrusted_cert.sh"
+} > "$UNSUCCESFUL_OUT_DIR/untrusted_cert.sh"
 
-echo "Generated $OUT_DIR/untrusted.sh"
+echo "Generated $UNSUCCESFUL_OUT_DIR/untrusted.sh"
 
 # Clean up temp files
 rm -f "$untrusted_key"
@@ -103,6 +104,6 @@ rm -f "$untrusted_key"
 {
     echo "# SIGNATURE: THIS_IS_NOT_BASE64_AND_NOT_A_SIGNATURE"
     echo "$SCRIPT_BODY"
-} > "$OUT_DIR/invalid_signature_format.sh"
+} > "$UNSUCCESFUL_OUT_DIR/invalid_signature_format.sh"
 
-echo "Generated $OUT_DIR/invalid_signature.sh"
+echo "Generated $UNSUCCESFUL_OUT_DIR/invalid_signature.sh"

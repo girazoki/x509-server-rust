@@ -2,9 +2,33 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::UnixListener;
 
 use crate::errors::ServerError;
+use std::fs;
+use std::path::Path;
 use std::sync::Arc;
 use tokio::io::{AsyncRead, AsyncWrite};
+use x509_parser::prelude::FromDer;
 use x509_parser::prelude::X509Certificate;
+use x509_parser::prelude::parse_x509_pem;
+
+pub async fn run_server_with_cert_dir(
+    cert_path: &std::path::Path,
+    socket_path: &std::path::Path,
+) -> Result<(), ServerError> {
+    let trusted_certs: Vec<X509Certificate<'static>> = if cert_path.is_dir() {
+        load_certificates_from_dir(cert_path)?
+    } else {
+        let data = std::fs::read(cert_path)?;
+        load_certificates_from_file(&data)?
+    };
+
+    if trusted_certs.is_empty() {
+        return Err(ServerError::NoCertificatesFound);
+    }
+
+    println!("Loaded {} trusted certificate(s)", trusted_certs.len());
+
+    run(socket_path.to_str().unwrap(), trusted_certs).await
+}
 
 pub async fn run(
     socket_path: &str,
@@ -80,8 +104,7 @@ where
     };
     let body = lines.collect::<Vec<_>>().join("\n");
 
-    let result =
-        crate::server::verify_script_against_cert_store(&trusted_certs, signature, body.as_bytes());
+    let result = verify_script_against_cert_store(&trusted_certs, signature, body.as_bytes());
 
     let response = match result {
         Ok(_) => match std::process::Command::new("bash")
@@ -114,4 +137,46 @@ pub fn verify_script_against_cert_store(
         }
     }
     Err(ServerError::SignatureVerificationFailed)
+}
+
+pub fn load_certificates_from_file(
+    data: &[u8],
+) -> Result<Vec<X509Certificate<'static>>, ServerError> {
+    let mut certs = Vec::new();
+    if let Ok((_, pem)) = x509_parser::pem::parse_x509_pem(data) {
+        if let Ok((_, cert)) = x509_parser::certificate::X509Certificate::from_der(&pem.contents) {
+            let cert_static: X509Certificate<'static> = unsafe { std::mem::transmute(cert) };
+            certs.push(cert_static);
+        }
+    }
+    Ok(certs)
+}
+
+pub fn load_certificates_from_dir<P: AsRef<Path>>(
+    dir: P,
+) -> Result<Vec<X509Certificate<'static>>, ServerError> {
+    let mut certs = Vec::new();
+
+    for entry in fs::read_dir(dir).map_err(|e| ServerError::IoError(e))? {
+        let entry = entry.map_err(|e| ServerError::IoError(e))?;
+        let path = entry.path();
+
+        // Skip if whatever we find is not a file itself
+        if !path.is_file() {
+            continue;
+        }
+
+        let data = fs::read(&path).map_err(|e| ServerError::IoError(e))?;
+
+        // Try to load only those files that parse correctly to a x509 cert
+        if let Ok((_, pem)) = parse_x509_pem(&data) {
+            if let Ok((_, cert)) = X509Certificate::from_der(&pem.contents) {
+                // Convert to 'static by leaking data (simplest way for example)
+                let cert_static: X509Certificate<'static> = unsafe { std::mem::transmute(cert) };
+                certs.push(cert_static);
+            }
+        }
+    }
+
+    Ok(certs)
 }
