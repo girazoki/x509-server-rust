@@ -118,5 +118,20 @@ openssl x509 -req -in "$INVALID_OUT_DIR/bad.csr" -CA "$TMP_CA_DIR/ca.crt" -CAkey
 # DER
 openssl x509 -in "$INVALID_OUT_DIR/bad.crt" -outform der -out "$INVALID_OUT_DIR/bad.der"
 
+
+#######################################
+# None Code-signing-eku compatible certificate
+#######################################
+echo "→ Non-code-signin certificate"
+openssl genrsa -out "$INVALID_OUT_DIR/non-code-sigining.key" 2048
+
+
+openssl req -new -key "$INVALID_OUT_DIR/non-code-sigining.key" -out "$INVALID_OUT_DIR/non-code-sigining.csr" -subj "$SUBJ"
+
+openssl x509 -req -in "$INVALID_OUT_DIR/non-code-sigining.csr" -signkey "$INVALID_OUT_DIR/non-code-sigining.key" \
+  -out "$INVALID_OUT_DIR/non-code-sigining.crt" -days "$DAYS" \
+
+openssl x509 -in "$INVALID_OUT_DIR/non-code-sigining.crt" -outform der -out "$INVALID_OUT_DIR/non-code-sigining.der"
+
 # Cleanup temp CA
 rm -rf "$TMP_CA_DIR"

@@ -203,6 +203,12 @@ pub fn load_certificates_from_dir<P: AsRef<Path>>(
             continue;
         }
 
+        // Only load `.crt` files
+        if path.extension().and_then(|e| e.to_str()) != Some("crt") {
+            log::debug!("Skipping non-crt file: {:?}", path);
+            continue;
+        }
+
         let data = fs::read(&path).map_err(|e| ServerError::IoError(e))?;
 
         // Try to load only those files that parse correctly to a x509 cert
