@@ -10,6 +10,7 @@ use x509_parser::prelude::FromDer;
 use x509_parser::prelude::X509Certificate;
 
 // We need to own the der bytes long enough, that is why we created this struct
+#[derive(Debug)]
 pub struct OwnedX509Certificate {
     pub der: Arc<Vec<u8>>,
     pub cert: X509Certificate<'static>,
@@ -194,7 +195,7 @@ pub fn load_certificates_from_dir<P: AsRef<Path>>(
 
         // Try to load only those files that parse correctly to a x509 cert
         if let Ok(cert) = load_certificate_from_file(&data) {
-            log::debug!("Loading certifiate DER {:?}", cert.der);
+            log::debug!("Loading certifiate in path {:?} DER {:?}", path, cert.der);
             certs.push(cert);
         }
     }

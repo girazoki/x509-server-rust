@@ -1,8 +1,8 @@
 use base64::Engine as _;
 use rcgen::SigningKey;
 use rcgen::{
-    CertificateParams, KeyPair, PKCS_ECDSA_P256_SHA256, PKCS_ECDSA_P384_SHA384, PKCS_ED25519,
-    PKCS_RSA_SHA256,
+    CertificateParams, Issuer, KeyPair, PKCS_ECDSA_P256_SHA256, PKCS_ECDSA_P384_SHA384,
+    PKCS_ED25519, PKCS_RSA_SHA256,
 };
 /// Supported algorithms
 #[allow(dead_code)]
@@ -40,4 +40,31 @@ pub fn generate_cert_and_signature(algo: TestAlgo, message: &[u8]) -> (Vec<u8>, 
     let sig_b64 = base64::engine::general_purpose::STANDARD.encode(&sig_bytes);
 
     (der_bytes, sig_b64)
+}
+
+/// Generates a leaf certificate signed by the given CA
+#[allow(dead_code)]
+pub fn generate_leaf_cert_signed_by_ca() -> Vec<u8> {
+    // We first generate the CA key. this for now will be RSA
+    let ca_key_pair = KeyPair::generate_for(&PKCS_RSA_SHA256).unwrap();
+    // Create certificate params with the generated ca key
+    let cert_ca = CertificateParams::new(vec!["CA".to_string()])
+        .unwrap()
+        .self_signed(&ca_key_pair)
+        .unwrap();
+
+    let ca = Issuer::from_ca_cert_pem(&cert_ca.pem(), &ca_key_pair).unwrap();
+
+    // now we generate a certificate signed by the CA
+    let leaf_key_pair = KeyPair::generate_for(&PKCS_RSA_SHA256).unwrap();
+
+    let leaf_cert = CertificateParams::new(vec!["Leaf Cert".to_string()])
+        .unwrap()
+        .signed_by(&leaf_key_pair, &ca)
+        .unwrap();
+
+    // PEM bytes of the certificate
+    let pem = leaf_cert.pem();
+
+    pem.as_bytes().to_vec()
 }

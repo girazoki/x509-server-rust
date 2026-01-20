@@ -1,10 +1,12 @@
 mod utils;
 use std::sync::Arc;
 use tokio::io::{AsyncReadExt, AsyncWriteExt, duplex};
-use utils::{TestAlgo, generate_cert_and_signature};
+use utils::{TestAlgo, generate_cert_and_signature, generate_leaf_cert_signed_by_ca};
 use x509_parser::prelude::{FromDer, X509Certificate};
 use x509_server_rust::errors::ServerError;
-use x509_server_rust::server::{OwnedX509Certificate, handle_connection};
+use x509_server_rust::server::{
+    OwnedX509Certificate, handle_connection, load_certificate_from_file,
+};
 
 #[tokio::test]
 async fn test_invalid_signature() {
@@ -148,4 +150,12 @@ async fn test_server_with_valid_signature() {
     assert!(response.contains("Hello world from valid script"));
 
     server_task.await.unwrap();
+}
+
+#[test]
+fn test_non_self_signed_certificate() {
+    // Generate a certificate signed by a CA
+    let der_bytes = generate_leaf_cert_signed_by_ca();
+    let result = load_certificate_from_file(&der_bytes);
+    assert!(matches!(result, Err(ServerError::UntrustedCertificate)));
 }
