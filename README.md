@@ -56,7 +56,9 @@ This command generates a set of certificates using RSA and ECDSA256 and ECDSA384
 ./scripts/generate_example_certificates.sh
 ```
 
-The certificates will be under example_certificates. The script also generates a couple of wrong certificates, specifically:
+The certificates will be under example_certificates. In particular it generates 3 certificates that support codeSigning feature: RSA (rsa2048.crt), ECDSA256(ecdsa_p256.crt) and ECDSA384(ecdsa_p384.crt). It also generates a 4th certificate that does not support codeSigning, named non_code_signing.crt.
+
+The script additionally generates a couple of wrong certificates, specifically:
 - one that is signed by a CA, which is not permitted by the server currently (leaf.crt).
 - one whose veritifcation does not match the supposed signer (bad.crt).
 
@@ -75,8 +77,14 @@ rsa2048.sh → valid RSA-signed script
 ecdsa_p256.sh → valid ECDSA P-256 signed script
 
 ecdsa_p384.sh → valid ECDSA P-384 signed script
+```
 
-wrong_signature.sh → dummy signature (invalid)
+The scripts also generates another set of certificates to test for invalid scripts:
+
+```bash
+non_code_signing_cert.sh → Code signed to be verified by a certificate that does not have codeSigning enabled.
+
+invalid_signature_format.sh → dummy signature (invalid)
 
 untrusted_cert.sh → valid signature from a certificate not trusted by the server
 ```
