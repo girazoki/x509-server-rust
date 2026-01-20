@@ -16,6 +16,7 @@ pub struct OwnedX509Certificate {
     pub cert: X509Certificate<'static>,
 }
 
+/// Run the server with a given socket path and a certificate directory path
 pub async fn run_server_with_cert_dir(
     cert_path: &std::path::Path,
     socket_path: &std::path::Path,
@@ -37,6 +38,7 @@ pub async fn run_server_with_cert_dir(
     run(socket_path.to_str().unwrap(), trusted_certs).await
 }
 
+/// Run the server with a given socket path and a set of already loaded certificates
 pub async fn run(
     socket_path: &str,
     trusted_certs: Vec<OwnedX509Certificate>,
@@ -60,7 +62,8 @@ pub async fn run(
         });
     }
 }
-/// Handles a single incoming connection
+
+/// Handles an incoming connection
 pub async fn handle_connection<S>(
     stream: &mut S,
     trusted_certs: Arc<Vec<OwnedX509Certificate>>,
@@ -86,6 +89,7 @@ where
     let text = String::from_utf8_lossy(&buf);
     let mut lines = text.lines();
 
+    // Try to read the first line
     let sig_line = match lines.next() {
         Some(line) => line,
         None => {
@@ -98,6 +102,7 @@ where
         }
     };
 
+    // Try to get the signature from the first line
     let signature = match sig_line.strip_prefix("# SIGNATURE:") {
         Some(sig) => sig.trim(),
         None => {
@@ -109,6 +114,8 @@ where
             return Ok(());
         }
     };
+
+    // The rest is our body
     let body = lines.collect::<Vec<_>>().join("\n");
 
     let result = verify_script_against_cert_store(&trusted_certs, signature, body.as_bytes());
@@ -147,7 +154,7 @@ pub fn verify_script_against_cert_store(
     Err(ServerError::SignatureVerificationFailed)
 }
 
-// Load the cerificate from a file
+/// Load the cerificate from a file
 pub fn load_certificate_from_file(data: &[u8]) -> Result<OwnedX509Certificate, ServerError> {
     // Early return if we cannot parse the x509 pem
     let (_, pem) = x509_parser::pem::parse_x509_pem(data).map_err(|e| {

@@ -24,6 +24,8 @@ This project implements a Unix socket-based server that verifies signed bash scr
 - `bash`  
 - `socat` (optional, for testing scripts via Unix socket)  
 
+For complete Rust installation steps you can follow this guide: https://rust-lang.org/tools/install/
+
 ---
 
 ## Compilation

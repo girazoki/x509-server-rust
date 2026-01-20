@@ -1,4 +1,3 @@
-// tests/crypto_tests.rs
 mod utils;
 use base64::Engine;
 use utils::{TestAlgo, generate_cert_and_signature};
