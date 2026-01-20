@@ -11,6 +11,9 @@ pub enum ServerError {
     UnsupportedCurve,
     NoCertificatesFound,
     MissingSignatureLine,
+    EmptyFile,
+    EmptyRequest,
+    UntrustedCertificate,
     IoError(std::io::Error),
 }
 
@@ -27,6 +30,15 @@ impl fmt::Display for ServerError {
             ServerError::NoCertificatesFound => write!(f, "No certificates found"),
             ServerError::MissingSignatureLine => {
                 write!(f, "Missing signature line, not reading further")
+            }
+            ServerError::EmptyFile => {
+                write!(f, "Received an empty file")
+            }
+            ServerError::EmptyRequest => {
+                write!(f, "Received an empty request")
+            }
+            ServerError::UntrustedCertificate => {
+                write!(f, "We dont trust any non-self-signed certificate")
             }
             ServerError::IoError(e) => write!(f, "I/O error: {}", e),
         }

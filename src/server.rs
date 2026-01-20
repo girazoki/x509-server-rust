@@ -10,15 +10,22 @@ use x509_parser::prelude::FromDer;
 use x509_parser::prelude::X509Certificate;
 use x509_parser::prelude::parse_x509_pem;
 
+// We need to own the der bytes long enough here, that is why we created this struct
+pub struct OwnedX509Certificate {
+    pub der: Arc<Vec<u8>>,
+    pub cert: X509Certificate<'static>,
+}
+
 pub async fn run_server_with_cert_dir(
     cert_path: &std::path::Path,
     socket_path: &std::path::Path,
 ) -> Result<(), ServerError> {
-    let trusted_certs: Vec<X509Certificate<'static>> = if cert_path.is_dir() {
+    let trusted_certs: Vec<OwnedX509Certificate> = if cert_path.is_dir() {
         load_certificates_from_dir(cert_path)?
     } else {
         let data = std::fs::read(cert_path)?;
-        load_certificates_from_file(&data)?
+        let cert = load_certificate_from_file(&data)?;
+        vec![cert]
     };
 
     if trusted_certs.is_empty() {
@@ -32,7 +39,7 @@ pub async fn run_server_with_cert_dir(
 
 pub async fn run(
     socket_path: &str,
-    trusted_certs: Vec<X509Certificate<'static>>,
+    trusted_certs: Vec<OwnedX509Certificate>,
 ) -> Result<(), ServerError> {
     // Remove old socket if exists
     let _ = std::fs::remove_file(socket_path);
@@ -56,7 +63,7 @@ pub async fn run(
 /// Handles a single incoming connection
 pub async fn handle_connection<S>(
     stream: &mut S,
-    trusted_certs: Arc<Vec<X509Certificate<'static>>>,
+    trusted_certs: Arc<Vec<OwnedX509Certificate>>,
 ) -> Result<(), ServerError>
 where
     S: AsyncRead + AsyncWrite + Unpin,
@@ -68,7 +75,7 @@ where
 
     if buf.is_empty() {
         // No data received; respond gracefully
-        let response = format!("STATUS: INVALID INPUT\n");
+        let response = format!("STATUS: INVALID\n{}", ServerError::EmptyRequest);
         stream
             .write_all(response.as_bytes())
             .await
@@ -82,7 +89,7 @@ where
     let sig_line = match lines.next() {
         Some(line) => line,
         None => {
-            let response = format!("STATUS: INVALID\n{}", ServerError::MissingSignatureLine);
+            let response = format!("STATUS: INVALID\n{}", ServerError::EmptyFile);
             stream
                 .write_all(response.as_bytes())
                 .await
@@ -126,35 +133,46 @@ where
     Ok(())
 }
 
+// Verify a given signature against all certificates in store
 pub fn verify_script_against_cert_store(
-    certs: &[X509Certificate<'static>],
+    certs: &[OwnedX509Certificate],
     signature_b64: &str,
     message: &[u8],
 ) -> Result<(), ServerError> {
     for cert in certs {
-        if crate::crypto::verify_signature(cert, signature_b64, message).is_ok() {
+        if crate::crypto::verify_signature(&cert.cert, signature_b64, message).is_ok() {
             return Ok(());
         }
     }
     Err(ServerError::SignatureVerificationFailed)
 }
 
-pub fn load_certificates_from_file(
-    data: &[u8],
-) -> Result<Vec<X509Certificate<'static>>, ServerError> {
-    let mut certs = Vec::new();
-    if let Ok((_, pem)) = x509_parser::pem::parse_x509_pem(data) {
-        if let Ok((_, cert)) = x509_parser::certificate::X509Certificate::from_der(&pem.contents) {
-            let cert_static: X509Certificate<'static> = unsafe { std::mem::transmute(cert) };
-            certs.push(cert_static);
-        }
+// Load the cerificate from a file
+pub fn load_certificate_from_file(data: &[u8]) -> Result<OwnedX509Certificate, ServerError> {
+    // Early return if we cannot parse the x509 pem
+    let (_, pem) = x509_parser::pem::parse_x509_pem(data).map_err(|_| ServerError::InvalidPem)?;
+    let der_bytes = Arc::new(pem.contents.to_vec());
+
+    // Early return if we cannot derive the cert from
+    let (_, cert) =
+        X509Certificate::from_der(&der_bytes).map_err(|_| ServerError::InvalidCertificate)?;
+    // Enforce self-signed
+    let cert_static: X509Certificate<'static> = unsafe { std::mem::transmute(cert) };
+    if !is_self_signed(&cert_static) {
+        return Err(ServerError::UntrustedCertificate);
     }
-    Ok(certs)
+
+    Ok(OwnedX509Certificate {
+        der: der_bytes,
+        cert: cert_static,
+    })
 }
 
+/// Load cerificates from directory
+/// Files that are not valid certificates are not loaded
 pub fn load_certificates_from_dir<P: AsRef<Path>>(
     dir: P,
-) -> Result<Vec<X509Certificate<'static>>, ServerError> {
+) -> Result<Vec<OwnedX509Certificate>, ServerError> {
     let mut certs = Vec::new();
 
     for entry in fs::read_dir(dir).map_err(|e| ServerError::IoError(e))? {
@@ -169,14 +187,21 @@ pub fn load_certificates_from_dir<P: AsRef<Path>>(
         let data = fs::read(&path).map_err(|e| ServerError::IoError(e))?;
 
         // Try to load only those files that parse correctly to a x509 cert
-        if let Ok((_, pem)) = parse_x509_pem(&data) {
-            if let Ok((_, cert)) = X509Certificate::from_der(&pem.contents) {
-                // Convert to 'static by leaking data (simplest way for example)
-                let cert_static: X509Certificate<'static> = unsafe { std::mem::transmute(cert) };
-                certs.push(cert_static);
-            }
+        if let Ok(cert) = load_certificate_from_file(&data) {
+            certs.push(cert);
         }
     }
 
     Ok(certs)
+}
+
+/// Verify the certificate is selg-signed. We only support self-signed certificates in this server.
+fn is_self_signed(cert: &X509Certificate) -> bool {
+    // Issuer == Subject
+    if cert.tbs_certificate.subject != cert.tbs_certificate.issuer {
+        return false;
+    }
+
+    // Verify cert signature with its own public key
+    cert.verify_signature(None).is_ok()
 }

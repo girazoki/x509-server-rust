@@ -4,12 +4,12 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt, duplex};
 use utils::{TestAlgo, generate_cert_and_signature};
 use x509_parser::prelude::{FromDer, X509Certificate};
 use x509_server_rust::errors::ServerError;
-use x509_server_rust::server::handle_connection;
+use x509_server_rust::server::{OwnedX509Certificate, handle_connection};
 
 #[tokio::test]
 async fn test_invalid_signature() {
     let (mut client, mut server) = duplex(1024);
-    let certs: Arc<Vec<X509Certificate<'static>>> = Arc::new(vec![]);
+    let certs: Arc<Vec<OwnedX509Certificate>> = Arc::new(vec![]);
 
     let server_task = tokio::spawn(async move {
         handle_connection(&mut server, certs).await.unwrap();
@@ -29,7 +29,7 @@ async fn test_invalid_signature() {
 #[tokio::test]
 async fn test_invalid_utf8_input() {
     let (mut client, mut server) = duplex(1024);
-    let certs: Arc<Vec<X509Certificate<'static>>> = Arc::new(vec![]);
+    let certs: Arc<Vec<OwnedX509Certificate>> = Arc::new(vec![]);
 
     let server_task = tokio::spawn(async move {
         handle_connection(&mut server, certs).await.unwrap();
@@ -51,7 +51,7 @@ async fn test_invalid_utf8_input() {
 #[tokio::test]
 async fn test_broken_stream() {
     let (client, mut server) = duplex(1024);
-    let certs: Arc<Vec<X509Certificate<'static>>> = Arc::new(vec![]);
+    let certs: Arc<Vec<OwnedX509Certificate>> = Arc::new(vec![]);
 
     let server_task = tokio::spawn(async move {
         let result = handle_connection(&mut server, certs).await;
@@ -67,7 +67,7 @@ async fn test_broken_stream() {
 #[tokio::test]
 async fn test_script_execution_failure() {
     let (mut client, mut server) = duplex(1024);
-    let certs: Arc<Vec<X509Certificate<'static>>> = Arc::new(vec![]);
+    let certs: Arc<Vec<OwnedX509Certificate>> = Arc::new(vec![]);
 
     let server_task = tokio::spawn(async move {
         handle_connection(&mut server, certs).await.unwrap();
@@ -120,9 +120,12 @@ async fn test_server_with_valid_signature() {
 
     // Getting a static reference here, we are in tests so this is ok
     let (der_bytes, sig_b64) = generate_cert_and_signature(algo, script_bytes);
-    let der_static: &'static [u8] = Box::leak(der_bytes.into_boxed_slice());
+    let der_static: &'static [u8] = Box::leak(der_bytes.clone().into_boxed_slice());
     let (_, cert) = X509Certificate::from_der(der_static).unwrap();
-    let certs: Arc<Vec<X509Certificate<'static>>> = Arc::new(vec![cert]);
+    let certs: Arc<Vec<OwnedX509Certificate>> = Arc::new(vec![OwnedX509Certificate {
+        cert,
+        der: der_bytes.into(),
+    }]);
 
     // Let's build the signature
     let input = format!("# SIGNATURE: {}\n{}", sig_b64, script);

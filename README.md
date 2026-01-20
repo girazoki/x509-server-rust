@@ -85,7 +85,7 @@ In this case the bash commands is a simple hello-world
 ## Running the server
 Start the server with:
 ```bash
-/target/release/x509-server-rust \
+./target/release/x509-server-rust \
     --cert-path ./example_certs \
     --socket-path /tmp/x509-server.sock
 ```
