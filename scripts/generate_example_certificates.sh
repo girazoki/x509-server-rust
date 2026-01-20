@@ -80,6 +80,22 @@ ls -1 "$OUT_DIR"
 
 
 #######################################
+# None Code-signing-eku compatible certificate
+#######################################
+echo "→ Non-code-signin certificate"
+openssl genrsa -out "$OUT_DIR/non_code_signing.key" 2048
+
+openssl pkey -in "$OUT_DIR/non_code_signing.key" -out "$OUT_DIR/non_code_signing.pem"
+
+openssl req -new -key "$OUT_DIR/non_code_signing.key" -out "$OUT_DIR/non_code_signing.csr" -subj "$SUBJ"
+
+openssl x509 -req -in "$OUT_DIR/non_code_signing.csr" -signkey "$OUT_DIR/non_code_signing.key" \
+  -out "$OUT_DIR/non_code_signing.crt" -days "$DAYS" \
+
+openssl x509 -in "$OUT_DIR/non_code_signing.crt" -outform der -out "$OUT_DIR/non_code_signing.der"
+
+
+#######################################
 # CA-signed certificate
 #######################################
 echo "→ Generating CA-signed certificate"
@@ -117,21 +133,6 @@ openssl x509 -req -in "$INVALID_OUT_DIR/bad.csr" -CA "$TMP_CA_DIR/ca.crt" -CAkey
 
 # DER
 openssl x509 -in "$INVALID_OUT_DIR/bad.crt" -outform der -out "$INVALID_OUT_DIR/bad.der"
-
-
-#######################################
-# None Code-signing-eku compatible certificate
-#######################################
-echo "→ Non-code-signin certificate"
-openssl genrsa -out "$INVALID_OUT_DIR/non-code-sigining.key" 2048
-
-
-openssl req -new -key "$INVALID_OUT_DIR/non-code-sigining.key" -out "$INVALID_OUT_DIR/non-code-sigining.csr" -subj "$SUBJ"
-
-openssl x509 -req -in "$INVALID_OUT_DIR/non-code-sigining.csr" -signkey "$INVALID_OUT_DIR/non-code-sigining.key" \
-  -out "$INVALID_OUT_DIR/non-code-sigining.crt" -days "$DAYS" \
-
-openssl x509 -in "$INVALID_OUT_DIR/non-code-sigining.crt" -outform der -out "$INVALID_OUT_DIR/non-code-sigining.der"
 
 # Cleanup temp CA
 rm -rf "$TMP_CA_DIR"

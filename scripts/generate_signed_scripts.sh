@@ -69,6 +69,22 @@ sign_script "$CERT_DIR/rsa2048.pem"    "rsa"        "rsa2048"
 sign_script "$CERT_DIR/ecdsa_p256.pem" "ecdsa256"   "ecdsa_p256"
 sign_script "$CERT_DIR/ecdsa_p384.pem" "ecdsa384"   "ecdsa_p384"
 
+#######################################
+# VALID SIGNATURE, NOT A 
+#######################################
+
+# Sign the script with the untrusted key
+signature=$(printf "%s" "$SCRIPT_BODY" \
+    | openssl dgst -sha256 -sign "$CERT_DIR/non_code_signing.pem" \
+    | base64 -w0)
+
+# Write the signed script
+{
+    echo "# SIGNATURE: $signature"
+    echo "$SCRIPT_BODY"
+} > "$UNSUCCESFUL_OUT_DIR/non_code_siging_cert.sh"
+
+echo "Generated $UNSUCCESFUL_OUT_DIR/non_code_siging_cert.sh"
 
 #######################################
 # VALID SIGNATURE, UNTRUSTED CERT (generated on the fly)

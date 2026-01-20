@@ -147,6 +147,10 @@ pub fn verify_script_against_cert_store(
     message: &[u8],
 ) -> Result<(), ServerError> {
     for cert in certs {
+        // Check if certificate is valid for code signing
+        if !has_code_signing_eku(&cert.cert) {
+            continue;
+        }
         if crate::crypto::verify_signature(&cert.cert, signature_b64, message).is_ok() {
             return Ok(());
         }
@@ -174,11 +178,6 @@ pub fn load_certificate_from_file(data: &[u8]) -> Result<OwnedX509Certificate, S
     // Check if certificate is sef_signed
     if !is_self_signed(&cert_static) {
         return Err(ServerError::UntrustedCertificate);
-    }
-
-    // Check if certificate is valid for code signing
-    if !has_code_signing_eku(&cert_static) {
-        return Err(ServerError::CodeSigningNotEnabled);
     }
 
     Ok(OwnedX509Certificate {

@@ -1,8 +1,8 @@
 use base64::Engine as _;
 use rcgen::SigningKey;
 use rcgen::{
-    CertificateParams, Issuer, KeyPair, PKCS_ECDSA_P256_SHA256, PKCS_ECDSA_P384_SHA384,
-    PKCS_ED25519, PKCS_RSA_SHA256,
+    CertificateParams, ExtendedKeyUsagePurpose, Issuer, KeyPair, PKCS_ECDSA_P256_SHA256,
+    PKCS_ECDSA_P384_SHA384, PKCS_ED25519, PKCS_RSA_SHA256,
 };
 /// Supported algorithms
 #[allow(dead_code)]
@@ -25,10 +25,10 @@ pub fn generate_cert_and_signature(algo: TestAlgo, message: &[u8]) -> (Vec<u8>, 
     };
 
     // Create certificate params with the generated key
-    let cert = CertificateParams::new(vec!["localhost".to_string()])
-        .unwrap()
-        .self_signed(&key_pair)
-        .unwrap();
+    let mut cert_params = CertificateParams::new(vec!["localhost".to_string()]).unwrap();
+
+    cert_params.insert_extended_key_usage(ExtendedKeyUsagePurpose::CodeSigning);
+    let cert = cert_params.self_signed(&key_pair).unwrap();
 
     // DER bytes of the certificate
     let der_bytes: Vec<u8> = cert.der().to_vec();
