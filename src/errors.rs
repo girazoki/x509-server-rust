@@ -14,6 +14,7 @@ pub enum ServerError {
     EmptyFile,
     EmptyRequest,
     UntrustedCertificate,
+    CodeSigningNotEnabled,
     IoError(std::io::Error),
 }
 
@@ -39,6 +40,9 @@ impl fmt::Display for ServerError {
             }
             ServerError::UntrustedCertificate => {
                 write!(f, "We dont trust any non-self-signed certificate")
+            }
+            ServerError::CodeSigningNotEnabled => {
+                write!(f, "Code signing eku not enabled")
             }
             ServerError::IoError(e) => write!(f, "I/O error: {}", e),
         }

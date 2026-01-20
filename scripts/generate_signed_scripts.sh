@@ -3,10 +3,11 @@ set -euo pipefail
 
 CERT_DIR="./example_certs"
 OUT_DIR="./example_bash_scripts"
-UNSUCCESFUL_OUT_DIR="./example_bash_scripts"
+UNSUCCESFUL_OUT_DIR="./example_unsuccesful_bash_scripts"
 SCRIPT_BODY="echo hello"
 
 mkdir -p "$OUT_DIR"
+mkdir -p "$UNSUCCESFUL_OUT_DIR"
 
 # Helper function for Ed25519 signatures
 sign_ed25519() {
@@ -62,11 +63,6 @@ sign_script() {
 
     echo "Generated $OUT_DIR/$out_name.sh"
 }
-
-
-
-
-
 
 # Generate valid scripts
 sign_script "$CERT_DIR/rsa2048.pem"    "rsa"        "rsa2048"

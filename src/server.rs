@@ -176,6 +176,11 @@ pub fn load_certificate_from_file(data: &[u8]) -> Result<OwnedX509Certificate, S
         return Err(ServerError::UntrustedCertificate);
     }
 
+    // Check if certificate is valid for code signing
+    if !has_code_signing_eku(&cert_static) {
+        return Err(ServerError::CodeSigningNotEnabled);
+    }
+
     Ok(OwnedX509Certificate {
         der: der_bytes,
         cert: cert_static,
@@ -219,4 +224,14 @@ fn is_self_signed(cert: &X509Certificate) -> bool {
 
     // Verify cert signature with its own public key
     cert.verify_signature(None).is_ok()
+}
+
+/// Verify the certificate is inteded for code signing
+fn has_code_signing_eku(cert: &X509Certificate) -> bool {
+    if let Ok(Some(eku)) = cert.extended_key_usage() {
+        if eku.value.code_signing {
+            return true;
+        }
+    }
+    false
 }

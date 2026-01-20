@@ -11,23 +11,28 @@ mkdir -p "$OUT_DIR"
 mkdir -p "$INVALID_OUT_DIR"
 echo "Generating certificates in $OUT_DIR"
 
+# Generate a config file for the extension
+cat >"$OUT_DIR/code_signing_ext.cnf" <<EOF
+[ v3_req ]
+keyUsage = digitalSignature
+extendedKeyUsage = codeSigning
+EOF
+
 #######################################
 # RSA 2048
 #######################################
 echo "→ RSA 2048"
 openssl genrsa -out "$OUT_DIR/rsa2048.key" 2048
 
-# Normalize to PEM (explicit, consistent)
 openssl pkey \
   -in "$OUT_DIR/rsa2048.key" \
   -out "$OUT_DIR/rsa2048.pem"
 
-openssl req -new -x509 \
-  -key "$OUT_DIR/rsa2048.pem" \
-  -out "$OUT_DIR/rsa2048.crt" \
-  -days "$DAYS" \
-  -subj "$SUBJ" \
-  -sha256
+openssl req -new -key "$OUT_DIR/rsa2048.key" -out "$OUT_DIR/rsa2048.csr" -subj "$SUBJ"
+
+openssl x509 -req -in "$OUT_DIR/rsa2048.csr" -signkey "$OUT_DIR/rsa2048.key" \
+  -out "$OUT_DIR/rsa2048.crt" -days "$DAYS" \
+  -extfile "$OUT_DIR/code_signing_ext.cnf" -extensions v3_req
 
 openssl x509 -in "$OUT_DIR/rsa2048.crt" -outform der -out "$OUT_DIR/rsa2048.der"
 
@@ -42,32 +47,30 @@ openssl pkey \
   -in "$OUT_DIR/ecdsa_p256.key" \
   -out "$OUT_DIR/ecdsa_p256.pem"
 
-openssl req -new -x509 \
-  -key "$OUT_DIR/ecdsa_p256.pem" \
-  -out "$OUT_DIR/ecdsa_p256.crt" \
-  -days "$DAYS" \
-  -subj "$SUBJ" \
-  -sha256
+openssl req -new -key "$OUT_DIR/ecdsa_p256.key" -out "$OUT_DIR/ecdsa_p256.csr" -subj "$SUBJ" --sha256
+
+openssl x509 -req -in "$OUT_DIR/ecdsa_p256.csr" -signkey "$OUT_DIR/ecdsa_p256.key" \
+  -out "$OUT_DIR/ecdsa_p256.crt" -days "$DAYS" \
+  -extfile "$OUT_DIR/code_signing_ext.cnf" -extensions v3_req --sha256
 
 openssl x509 -in "$OUT_DIR/ecdsa_p256.crt" -outform der -out "$OUT_DIR/ecdsa_p256.der"
+
 
 #######################################
 # ECDSA P-384
 #######################################
 echo "→ ECDSA P-384"
+
 openssl ecparam -name secp384r1 -genkey -noout \
   -out "$OUT_DIR/ecdsa_p384.key"
 
-openssl pkey \
-  -in "$OUT_DIR/ecdsa_p384.key" \
-  -out "$OUT_DIR/ecdsa_p384.pem"
+openssl pkey -in "$OUT_DIR/ecdsa_p384.key" -out "$OUT_DIR/ecdsa_p384.pem"
 
-openssl req -new -x509 \
-  -key "$OUT_DIR/ecdsa_p384.pem" \
-  -out "$OUT_DIR/ecdsa_p384.crt" \
-  -days "$DAYS" \
-  -subj "$SUBJ" \
-  -sha384
+openssl req -new -key "$OUT_DIR/ecdsa_p384.key" -out "$OUT_DIR/ecdsa_p384.csr" -subj "$SUBJ" --sha384
+
+openssl x509 -req -in "$OUT_DIR/ecdsa_p384.csr" -signkey "$OUT_DIR/ecdsa_p384.key" \
+  -out "$OUT_DIR/ecdsa_p384.crt" -days "$DAYS" \
+  -extfile "$OUT_DIR/code_signing_ext.cnf" -extensions v3_req --sha384
 
 openssl x509 -in "$OUT_DIR/ecdsa_p384.crt" -outform der -out "$OUT_DIR/ecdsa_p384.der"
 
@@ -87,11 +90,11 @@ openssl req -new -x509 -days "$DAYS" -key "$TMP_CA_DIR/ca.key" -out "$TMP_CA_DIR
 
 # --- Generate leaf key & CSR ---
 openssl genrsa -out "$INVALID_OUT_DIR/leaf.key" 2048
-openssl req -new -key "$INVALID_OUT_DIR/leaf.key" -out "$INVALID_OUT_DIR/leaf.csr" -subj "$SUBJ"
+openssl req -new -key "$INVALID_OUT_DIR/leaf.key" -out "$INVALID_OUT_DIR/leaf.csr" -subj "$SUBJ" 
 
 # --- Sign leaf with temp CA ---
 openssl x509 -req -in "$INVALID_OUT_DIR/leaf.csr" -CA "$TMP_CA_DIR/ca.crt" -CAkey "$TMP_CA_DIR/ca.key" -CAcreateserial \
-  -out "$INVALID_OUT_DIR/leaf.crt" -days "$DAYS" -sha256
+  -out "$INVALID_OUT_DIR/leaf.crt" -days "$DAYS" -sha256 -extfile "$OUT_DIR/code_signing_ext.cnf" -extensions v3_req
 
 # --- DER format (optional) ---
 openssl x509 -in "$INVALID_OUT_DIR/leaf.crt" -outform der -out "$INVALID_OUT_DIR/leaf.der"
@@ -110,7 +113,7 @@ openssl genrsa -out "$INVALID_OUT_DIR/bad.key" 2048
 openssl req -new -key "$INVALID_OUT_DIR/bad.key" -out "$INVALID_OUT_DIR/bad.csr" -subj "$SUBJ"
 
 # But instead we sign it with the CA key, which will produce a wrong sig
-openssl x509 -req -in "$INVALID_OUT_DIR/bad.csr" -CA "$TMP_CA_DIR/ca.crt" -CAkey "$TMP_CA_DIR/ca.key" -CAcreateserial -out "$INVALID_OUT_DIR/bad.crt" -days "$DAYS"
+openssl x509 -req -in "$INVALID_OUT_DIR/bad.csr" -CA "$TMP_CA_DIR/ca.crt" -CAkey "$TMP_CA_DIR/ca.key" -CAcreateserial -out "$INVALID_OUT_DIR/bad.crt" -days "$DAYS" -extfile "$OUT_DIR/code_signing_ext.cnf" -extensions v3_req
 
 # DER
 openssl x509 -in "$INVALID_OUT_DIR/bad.crt" -outform der -out "$INVALID_OUT_DIR/bad.der"
