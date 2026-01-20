@@ -9,7 +9,8 @@ edition = "2024"
 
 [dependencies]
 x509-parser = { version = "0.15", features = ["verify"] }
-
+log = { version = "0.4.22" }
+env_logger = "0.10"
 ring = "0.17"
 base64 = "0.22"
 sha2 = "0.10"

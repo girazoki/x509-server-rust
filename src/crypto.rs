@@ -40,9 +40,10 @@ pub fn verify_signature(
     let verifier =
         signature::UnparsedPublicKey::new(verification_alg, &spki.subject_public_key.data);
 
-    verifier
-        .verify(script_body, &signature)
-        .map_err(|_| ServerError::SignatureVerificationFailed)
+    verifier.verify(script_body, &signature).map_err(|e| {
+        log::debug!("failure verifying signature {:?}", e);
+        ServerError::SignatureVerificationFailed
+    })
 }
 
 fn get_ec_curve_sha(

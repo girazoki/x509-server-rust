@@ -8,9 +8,8 @@ use std::sync::Arc;
 use tokio::io::{AsyncRead, AsyncWrite};
 use x509_parser::prelude::FromDer;
 use x509_parser::prelude::X509Certificate;
-use x509_parser::prelude::parse_x509_pem;
 
-// We need to own the der bytes long enough here, that is why we created this struct
+// We need to own the der bytes long enough, that is why we created this struct
 pub struct OwnedX509Certificate {
     pub der: Arc<Vec<u8>>,
     pub cert: X509Certificate<'static>,
@@ -32,7 +31,7 @@ pub async fn run_server_with_cert_dir(
         return Err(ServerError::NoCertificatesFound);
     }
 
-    println!("Loaded {} trusted certificate(s)", trusted_certs.len());
+    log::info!("Loaded {} trusted certificate(s)", trusted_certs.len());
 
     run(socket_path.to_str().unwrap(), trusted_certs).await
 }
@@ -150,14 +149,21 @@ pub fn verify_script_against_cert_store(
 // Load the cerificate from a file
 pub fn load_certificate_from_file(data: &[u8]) -> Result<OwnedX509Certificate, ServerError> {
     // Early return if we cannot parse the x509 pem
-    let (_, pem) = x509_parser::pem::parse_x509_pem(data).map_err(|_| ServerError::InvalidPem)?;
+    let (_, pem) = x509_parser::pem::parse_x509_pem(data).map_err(|e| {
+        log::debug!("error parsing x509 pem {:?}", e);
+        ServerError::InvalidPem
+    })?;
     let der_bytes = Arc::new(pem.contents.to_vec());
 
     // Early return if we cannot derive the cert from
-    let (_, cert) =
-        X509Certificate::from_der(&der_bytes).map_err(|_| ServerError::InvalidCertificate)?;
-    // Enforce self-signed
+    let (_, cert) = X509Certificate::from_der(&der_bytes).map_err(|e| {
+        log::debug!("error loading certificate from der {:?}", e);
+        ServerError::InvalidCertificate
+    })?;
+    // This is safe to do now, as we return and own der_bytes for as long as the server runs
     let cert_static: X509Certificate<'static> = unsafe { std::mem::transmute(cert) };
+
+    // Check if certificate is sef_signed
     if !is_self_signed(&cert_static) {
         return Err(ServerError::UntrustedCertificate);
     }
@@ -188,6 +194,7 @@ pub fn load_certificates_from_dir<P: AsRef<Path>>(
 
         // Try to load only those files that parse correctly to a x509 cert
         if let Ok(cert) = load_certificate_from_file(&data) {
+            log::debug!("Loading certifiate DER {:?}", cert.der);
             certs.push(cert);
         }
     }
