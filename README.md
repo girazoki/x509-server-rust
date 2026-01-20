@@ -1,6 +1,6 @@
 # X509 Server Rust
 
-This project implements a Unix socket-based server that verifies signed bash scripts using X.509 certificates. The server supports multiple algorithms (RSA, ECDSA) and can be tested with example scripts.  
+This project implements a Unix socket-based server that verifies signed bash scripts using X.509 certificates. The server supports multiple algorithms (RSA, ECDSA) and can be tested with example scripts.  The server only accepts **self-signed certificates** for now.
 
 ---
 
@@ -12,8 +12,8 @@ This project implements a Unix socket-based server that verifies signed bash scr
 3. [Generating Example Certificates](#generating-example-certificates) 
 4. [Generating Signed Scripts](#generating-signed-scripts)  
 5. [Running the Server](#running-the-server)  
-6. [Testing Signed Scripts](#testing-signed-scripts)  
-7. [Server Error Cases](#server-error-cases)  
+6. [Testing Signed Scripts](#testing-signed-scripts)
+7. [Testing for wrong certificates](#testing-wrong-certificates)    
 
 ---
 
@@ -54,6 +54,11 @@ This command generates a set of certificates using RSA and ECDSA256 and ECDSA384
 ./scripts/generate_example_certificates.sh
 ```
 
+The certificates will be under example_certificates. The script also generates a couple of wrong certificates, specifically:
+- one that is signed by a CA, which is not permitted by the server currently (leaf.crt).
+- one whose veritifcation does not match the supposed signer (bad.crt).
+
+These will be under example_invalid_certs folder.
 ## Generating Signed Scripts
 Similarly, this command will allow you to generate a set of signatures of a simple `echo "hello world"`bash command. After generating the certificates in the previous step you simply run
 
@@ -125,3 +130,14 @@ else you will see different errors for different error cases, e.g
 STATUS: INVALID
 Signature verification failed
 ```
+
+## Testing For Wrong Certificates
+In order to test for wrong certificates, simply run 
+
+```bash
+./target/release/x509-server-rust \
+    --cert-path ./example_invalid_certs \
+    --socket-path /tmp/x509-server.sock
+```
+
+The server should say it does not find any valid certificates
